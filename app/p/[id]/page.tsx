@@ -1,26 +1,40 @@
 import { notFound } from 'next/navigation';
+import { headers as getHeaders } from 'next/headers';
 
-export default async function View({ params }: { params: { id: string } }) {
-  const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-  const res = await fetch(`${host}/api/pastes/${params.id}`, { cache: 'no-store' });
+export default async function ViewPaste({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  // 1. Await params
+  const { id } = await params;
+  
+  // 2. Dynamic fetch to your own API
+  const headers = await getHeaders();
+  const host = headers.get('host');
+  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
 
-  if (!res.ok) notFound();
+  const res = await fetch(`${protocol}://${host}/api/pastes/${id}`, {
+    cache: 'no-store',
+    headers: Object.fromEntries(headers.entries()),
+  });
+
+  if (!res.ok) {
+    notFound();
+  }
+
   const data = await res.json();
 
   return (
-    <div className="min-h-screen bg-white p-6 md:p-20">
-      <div className="max-w-4xl mx-auto space-y-4">
-        <div className="flex justify-between items-end border-b pb-4">
-          <h2 className="text-slate-400 font-mono text-sm uppercase tracking-widest">Paste: {params.id}</h2>
-          <div className="text-right text-xs text-slate-400">
-            {data.remaining_views !== null && <div>Views left: {data.remaining_views}</div>}
-            {data.expires_at && <div>Expires: {new Date(data.expires_at).toLocaleString()}</div>}
-          </div>
-        </div>
-        <pre className="p-6 bg-slate-50 rounded-xl overflow-x-auto font-mono text-sm leading-relaxed text-slate-800 border">
+    <main className="min-h-screen bg-[#0a0a0a] p-10 font-sans">
+       <div className="max-w-3xl mx-auto border border-zinc-800 rounded-xl p-8 bg-zinc-900/30">
+        <header className="mb-6 border-b border-zinc-800 pb-4">
+          <h1 className="text-zinc-500 font-mono text-xs uppercase tracking-widest">Paste: {id}</h1>
+        </header>
+        <pre className="text-zinc-200 font-mono text-sm whitespace-pre-wrap break-all leading-relaxed">
           {data.content}
         </pre>
       </div>
-    </div>
+    </main>
   );
 }
