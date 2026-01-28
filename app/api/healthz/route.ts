@@ -1,5 +1,7 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis'
 import { NextResponse } from 'next/server';
+
+const kv = Redis.fromEnv();
 
 export async function GET() {
   try {

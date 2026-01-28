@@ -1,6 +1,8 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis'
 import { getNow } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
+
+const kv = Redis.fromEnv();
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const key = `p:${params.id}`;
