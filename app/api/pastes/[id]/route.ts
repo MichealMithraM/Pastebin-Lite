@@ -4,13 +4,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const kv = Redis.fromEnv();
 
-// In Next.js 16, context.params is a Promise
+/**
+ * NEXT.JS 16 REQUIREMENT: 
+ * The second argument 'context' must have params as a Promise.
+ */
 export async function GET(
   req: NextRequest, 
-  { params }: { params: Promise<{ id: string }> } 
+  context: { params: Promise<{ id: string }> } 
 ) {
-  // 1. Await the params to get the ID
-  const { id } = await params;
+  // 1. Await the params immediately
+  const { id } = await context.params;
   const key = `p:${id}`;
 
   try {
@@ -20,16 +23,16 @@ export async function GET(
       return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
-    // 2. Await your custom getNow() utility
+    // 2. Await the deterministic time
     const now = await getNow();
 
-    // Check TTL Constraint
+    // Check TTL
     if (paste.expires_at && now >= paste.expires_at) {
       await kv.del(key);
       return NextResponse.json({ error: "Expired" }, { status: 404 });
     }
 
-    // Check View Count Constraint
+    // Check View Count
     if (paste.max_views !== null) {
       if (paste.remaining_views <= 0) {
         await kv.del(key);
@@ -38,11 +41,8 @@ export async function GET(
 
       paste.remaining_views -= 1;
 
-      if (paste.remaining_views === 0) {
-        await kv.del(key);
-      } else {
-        await kv.set(key, paste);
-      }
+      // Atomic-like update: if exhausted, delete; otherwise update
+      paste.remaining_views === 0 ? await kv.del(key) : await kv.set(key, paste);
     }
 
     return NextResponse.json({
@@ -51,6 +51,6 @@ export async function GET(
       expires_at: paste.expires_at ? new Date(paste.expires_at).toISOString() : null
     });
   } catch (error) {
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
+    return NextResponse.json({ error: "Persistence error" }, { status: 500 });
   }
 }

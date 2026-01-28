@@ -6,7 +6,6 @@ export default async function ViewPaste({
 }: { 
   params: Promise<{ id: string }> 
 }) {
-  // 1. Await params
   const { id } = await params;
   
   // 2. Dynamic fetch to your own API
